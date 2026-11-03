@@ -16,7 +16,6 @@ import {
   Crown,
   PlusCircle,
   Zap,
-  History,
   MoreVertical,
   Phone,
   Video,
@@ -86,6 +85,7 @@ function Login({ onLoginSuccess }) {
 
       if (res.ok && data.user) {
         localStorage.setItem('wa_user', JSON.stringify(data.user));
+        if (data.token) localStorage.setItem('wa_token', data.token);
         onLoginSuccess(data.user);
       } else {
         handleLocalLogin();
@@ -235,7 +235,7 @@ function WhatsAppPhoneMockup({ previewText, displayContact, imagePreview, button
           </div>
 
           <div className="self-start max-w-[80%] bg-[#202c33] text-slate-200 text-[11px] p-2.5 rounded-xl rounded-tl-none shadow">
-            Halo, ada info penawaran hari ini?
+            Halo, ada info atau promo terbaru hari ini?
             <span className="text-[9px] text-slate-400 block text-right mt-0.5">10:41</span>
           </div>
 
@@ -300,10 +300,12 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [usersList, setUsersList] = useState(INITIAL_USERS);
   const [activeTab, setActiveTab] = useState('blast'); // 'blast' | 'results' | 'session' | 'admin_users'
+  const [sessionStatus, setSessionStatus] = useState('disconnected');
+  const [qrCode, setQrCode] = useState(null);
 
   // Input Blast Form
   const [phoneList, setPhoneList] = useState('');
-  const [message, setMessage] = useState('Halo! Promo spesial wa-dojo khusus hari ini. Kunjungi link: https://wa-dojo.com');
+  const [message, setMessage] = useState('Halo! Promo spesial wa-dojo khusus hari ini. Kunjungi link kami di https://wa-dojo.com');
   const [delay, setDelay] = useState(3);
   const [isSending, setIsSending] = useState(false);
 
@@ -318,8 +320,8 @@ export default function App() {
     { text: '', url: '' }
   ]);
 
-  // STATE HASIL & MONITOR BROADCAST
-  const [broadcastQueue, setBroadcastQueue] = useState([]); // array of { id, phone, status: 'pending'|'processing'|'success'|'failed', time }
+  // Antrean dan Hasil Broadcast Realtime
+  const [broadcastQueue, setBroadcastQueue] = useState([]);
 
   // Modal Tambah Kuota
   const [quotaModal, setQuotaModal] = useState({ open: false, userId: null, amount: 50 });
@@ -333,18 +335,37 @@ export default function App() {
         localStorage.removeItem('wa_user');
       }
     }
+    checkQrStatus();
   }, []);
 
   const handleLogout = () => {
     localStorage.removeItem('wa_user');
+    localStorage.removeItem('wa_token');
     setCurrentUser(null);
+  };
+
+  const checkQrStatus = async () => {
+    try {
+      const res = await fetch('/api/qr');
+      const data = await res.json();
+      setSessionStatus(data.status);
+      if (data.qr) {
+        setQrCode(data.qr);
+      }
+    } catch {
+      // Offline fallback
+    }
   };
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
       setImageFile(file);
-      setImagePreview(URL.createObjectURL(file));
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -389,15 +410,12 @@ export default function App() {
     }
   };
 
-  // Nomor kontak baris pertama untuk preview mockup HP
   const firstContactNumber = phoneList
     .split('\n')
     .map(l => l.trim())
     .filter(Boolean)[0]?.split(',')[0] || '+62 812-3456-7890';
 
-  // ==========================================
-  // LOGIKA MULAI BLAST & AUTO-SWITCH KE TAB HASIL
-  // ==========================================
+  // Logika Mulai Blast & Auto Switch ke Tab Hasil
   const handleStartBlast = async () => {
     const lines = phoneList
       .split('\n')
@@ -416,7 +434,6 @@ export default function App() {
       }
     }
 
-    // 1. Siapkan Queue awal dengan status pending
     const initialQueue = lines.map((item, idx) => {
       const rawNumber = item.split(',')[0].trim().replace(/[^0-9]/g, '');
       const phone = rawNumber.startsWith('0') ? '62' + rawNumber.slice(1) : rawNumber;
@@ -430,43 +447,41 @@ export default function App() {
 
     setBroadcastQueue(initialQueue);
     setIsSending(true);
-
-    // 2. OTOMATIS PINDAH KE TAB HASIL BROADCAST
     setActiveTab('results');
 
-    // 3. Proses pengiriman satu per satu dengan delay
     for (let i = 0; i < initialQueue.length; i++) {
       const target = initialQueue[i];
 
-      // Update status menjadi processing
       setBroadcastQueue(prev => prev.map((item, idx) => 
         idx === i ? { ...item, status: 'processing' } : item
       ));
 
       let resultStatus = 'success';
       try {
-        await fetch('/api/send', {
+        const res = await fetch('/api/send', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
             phone: target.phone, 
             message,
-            hasImage: !!imagePreview,
+            imageBase64: imagePreview,
             buttons: buttons.filter(b => b.text.trim() !== '')
           })
         });
+        const resData = await res.json();
+        if (!res.ok || !resData.success) {
+          resultStatus = 'failed';
+        }
       } catch {
-        resultStatus = 'success'; // simulasi success bila backend mock
+        resultStatus = 'failed';
       }
 
-      // Update item yang baru selesai
       const doneTime = new Date().toLocaleTimeString();
       setBroadcastQueue(prev => prev.map((item, idx) => 
         idx === i ? { ...item, status: resultStatus, time: doneTime } : item
       ));
 
-      // Potong kuota member
-      if (currentUser.role === 'member') {
+      if (currentUser.role === 'member' && resultStatus === 'success') {
         setCurrentUser(prev => {
           const updated = { ...prev, quota: Math.max(0, prev.quota - 1), blastCount: prev.blastCount + 1 };
           localStorage.setItem('wa_user', JSON.stringify(updated));
@@ -474,7 +489,6 @@ export default function App() {
         });
       }
 
-      // Terapkan delay jika bukan nomor terakhir
       if (i < initialQueue.length - 1) {
         await new Promise(r => setTimeout(r, delay * 1000));
       }
@@ -483,7 +497,6 @@ export default function App() {
     setIsSending(false);
   };
 
-  // Ringkasan Penghitungan Hasil
   const countTotal = broadcastQueue.length;
   const countSuccess = broadcastQueue.filter(q => q.status === 'success').length;
   const countFailed = broadcastQueue.filter(q => q.status === 'failed').length;
@@ -563,7 +576,6 @@ export default function App() {
             Broadcast
           </button>
 
-          {/* Tab Hasil Broadcast */}
           <button
             onClick={() => setActiveTab('results')}
             className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium transition-all ${
@@ -582,7 +594,10 @@ export default function App() {
           </button>
 
           <button
-            onClick={() => setActiveTab('session')}
+            onClick={() => {
+              setActiveTab('session');
+              checkQrStatus();
+            }}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
               activeTab === 'session' 
                 ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-950/50' 
@@ -610,12 +625,9 @@ export default function App() {
 
         {/* Content Area */}
         <section className="lg:col-span-10">
-          {/* ========================================================= */}
-          {/* TAB 1: HASIL & MONITOR BROADCAST REALTIME                 */}
-          {/* ========================================================= */}
+          {/* TAB 1: HASIL & MONITOR BROADCAST */}
           {activeTab === 'results' && (
             <div className="space-y-6">
-              {/* Header Status Bar */}
               <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-5">
                   <div>
@@ -625,10 +637,10 @@ export default function App() {
                     <p className="text-xs text-slate-400 mt-1">
                       {isSending ? (
                         <span className="text-amber-400 flex items-center gap-1.5 font-medium">
-                          <Hourglass className="w-3.5 h-3.5 animate-spin" /> Proses pengiriman sedang berjalan dengan jeda {delay} detik...
+                          <Hourglass className="w-3.5 h-3.5 animate-spin" /> Sedang mengirim blast dengan jeda {delay} detik...
                         </span>
                       ) : (
-                        countTotal > 0 ? 'Pengiriman selesai diproses.' : 'Belum ada proses blast yang dijalankan.'
+                        countTotal > 0 ? 'Pengiriman broadcast selesai.' : 'Belum ada aktivitas blast yang berjalan.'
                       )}
                     </p>
                   </div>
@@ -641,7 +653,6 @@ export default function App() {
                   </button>
                 </div>
 
-                {/* Grid 4 Kartu Metrik */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
                   <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl">
                     <p className="text-[11px] font-semibold text-slate-400 uppercase">Total Target</p>
@@ -655,7 +666,7 @@ export default function App() {
                   </div>
                   <div className="p-4 bg-slate-950 border border-amber-900/40 rounded-xl">
                     <p className="text-[11px] font-semibold text-amber-400 uppercase flex items-center gap-1">
-                      <Clock className="w-3.5 h-3.5" /> Pending (Menunggu)
+                      <Clock className="w-3.5 h-3.5" /> Pending
                     </p>
                     <p className="text-2xl font-bold text-amber-400 mt-1">{countPending}</p>
                   </div>
@@ -667,7 +678,6 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Progress Bar */}
                 <div>
                   <div className="flex justify-between items-center text-xs mb-1.5">
                     <span className="text-slate-400">Progres Pengiriman</span>
@@ -682,7 +692,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Tabel Detail Antrean Broadcast */}
               <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
                 <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-400 mb-4">
                   Daftar Antrean & Status Per Nomor
@@ -702,7 +711,7 @@ export default function App() {
                       {broadcastQueue.length === 0 ? (
                         <tr>
                           <td colSpan="4" className="py-8 text-center text-slate-500 font-sans">
-                            Belum ada aktivitas broadcast. Silakan lakukan blast dari menu <b>Broadcast</b>.
+                            Belum ada nomor yang diproses. Silakan mulai blast dari menu <b>Broadcast</b>.
                           </td>
                         </tr>
                       ) : (
@@ -747,12 +756,9 @@ export default function App() {
             </div>
           )}
 
-          {/* ========================================================= */}
-          {/* TAB 2: BROADCAST CAMPAIGN + LIVE SMARTPHONE PREVIEW      */}
-          {/* ========================================================= */}
+          {/* TAB 2: BROADCAST CAMPAIGN */}
           {activeTab === 'blast' && (
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
-              {/* Form Input (7 Col) */}
               <div className="xl:col-span-7 space-y-6">
                 <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-5">
                   <div>
@@ -773,11 +779,10 @@ export default function App() {
                       className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-slate-200 focus:outline-none focus:border-emerald-500 font-mono"
                     />
                     <p className="text-[11px] text-slate-500 mt-1">
-                      Cukup masukkan nomor saja (awalan <code>08</code>, <code>628</code>, atau <code>+62</code>).
+                      Cukup masukkan nomor (awalan <code>08</code>, <code>628</code>, atau <code>+62</code>).
                     </p>
                   </div>
 
-                  {/* Upload Gambar */}
                   <div>
                     <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
                       <ImageIcon className="w-4 h-4 text-emerald-400" />
@@ -808,7 +813,6 @@ export default function App() {
                     )}
                   </div>
 
-                  {/* Template Pesan */}
                   <div>
                     <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
                       <FileText className="w-4 h-4 text-emerald-400" />
@@ -823,7 +827,6 @@ export default function App() {
                     />
                   </div>
 
-                  {/* 3 Tombol Tautan */}
                   <div className="space-y-3 pt-2 border-t border-slate-800/80">
                     <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
                       <ExternalLink className="w-4 h-4 text-emerald-400" />
@@ -871,7 +874,6 @@ export default function App() {
                     />
                   </div>
 
-                  {/* Tombol Mulai Kirim Blast */}
                   <button
                     disabled={isSending}
                     onClick={handleStartBlast}
@@ -883,7 +885,7 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Kolom Kanan: Mockup Layar HP WhatsApp */}
+              {/* Mockup HP */}
               <div className="xl:col-span-5 bg-slate-900/60 border border-slate-800 rounded-3xl p-6 flex flex-col items-center">
                 <div className="mb-4 text-center">
                   <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center justify-center gap-2">
@@ -902,9 +904,7 @@ export default function App() {
             </div>
           )}
 
-          {/* ========================================================= */}
-          {/* TAB 3: MANAJEMEN PENGGUNA (SUPER ADMIN)                  */}
-          {/* ========================================================= */}
+          {/* TAB 3: MANAJEMEN PENGGUNA */}
           {activeTab === 'admin_users' && currentUser.role === 'superadmin' && (
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
               <h2 className="text-lg font-bold text-white mb-1">Manajemen Pengguna (Super Admin)</h2>
@@ -989,24 +989,40 @@ export default function App() {
             </div>
           )}
 
-          {/* ========================================================= */}
-          {/* TAB 4: SESI WHATSAPP BAILEYS                             */}
-          {/* ========================================================= */}
+          {/* TAB 4: SESI WHATSAPP BAILEYS */}
           {activeTab === 'session' && (
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
               <h2 className="text-lg font-bold text-white mb-1">Koneksi WhatsApp Baileys</h2>
               <p className="text-sm text-slate-400 mb-6">Pindai QR code dari aplikasi WhatsApp pada ponsel Anda.</p>
 
               <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-slate-800 rounded-xl bg-slate-950/50">
-                <div className="p-8 text-center text-slate-500 mb-4">
-                  <QrCode className="w-16 h-16 mx-auto mb-2 opacity-30" />
-                  <p className="text-sm">Silakan hubungkan backend Baileys untuk memunculkan QR</p>
-                </div>
+                {sessionStatus === 'connected' ? (
+                  <div className="text-center py-6">
+                    <CheckCircle2 className="w-16 h-16 text-emerald-400 mx-auto mb-3" />
+                    <h3 className="text-base font-bold text-white">WhatsApp Terhubung Aktif</h3>
+                    <p className="text-xs text-slate-400 mt-1">Siap melakukan broadcast ke seluruh kontak tujuan.</p>
+                  </div>
+                ) : qrCode ? (
+                  <div className="flex flex-col items-center">
+                    <div className="p-3 bg-white rounded-xl shadow-lg mb-3">
+                      <img src={qrCode} alt="WhatsApp QR Code" className="w-56 h-56" />
+                    </div>
+                    <p className="text-xs text-emerald-400 font-medium animate-pulse mb-4">
+                      Silakan scan QR code di atas menggunakan WhatsApp
+                    </p>
+                  </div>
+                ) : (
+                  <div className="p-8 text-center text-slate-500 mb-4">
+                    <QrCode className="w-16 h-16 mx-auto mb-2 opacity-30" />
+                    <p className="text-sm">QR Code belum siap atau sedang di-generate</p>
+                  </div>
+                )}
+
                 <button
-                  onClick={() => alert('Menghubungkan ke Baileys backend port 3001...')}
+                  onClick={checkQrStatus}
                   className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium rounded-xl transition-all shadow-md"
                 >
-                  Generate QR Sesi
+                  Refresh Sesi / Cek QR
                 </button>
               </div>
             </div>
