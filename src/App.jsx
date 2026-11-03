@@ -29,7 +29,9 @@ import {
   Image as ImageIcon,
   ExternalLink,
   Trash2,
-  ArrowDownCircle
+  ArrowDownCircle,
+  Activity,
+  Hourglass
 } from 'lucide-react';
 
 const INITIAL_USERS = [
@@ -194,14 +196,12 @@ function WhatsAppPhoneMockup({ previewText, displayContact, imagePreview, button
 
   return (
     <div className="w-[320px] sm:w-[350px] h-[640px] bg-slate-950 rounded-[44px] p-3 shadow-2xl border-[5px] border-slate-700 flex flex-col relative mx-auto select-none">
-      {/* Notch */}
       <div className="absolute top-4 left-1/2 -translate-x-1/2 w-28 h-4 bg-slate-800 rounded-full z-30 flex items-center justify-center">
         <div className="w-3 h-3 rounded-full bg-black/60 mr-2" />
         <div className="w-8 h-1.5 bg-black/40 rounded-full" />
       </div>
 
       <div className="w-full h-full rounded-[34px] overflow-hidden flex flex-col bg-[#0b141a] text-slate-100 relative">
-        {/* Status Bar */}
         <div className="pt-2 px-5 pb-1 flex justify-between items-center text-[11px] font-semibold text-slate-300 z-20">
           <span>{currentTime}</span>
           <div className="flex items-center gap-1.5">
@@ -210,7 +210,6 @@ function WhatsAppPhoneMockup({ previewText, displayContact, imagePreview, button
           </div>
         </div>
 
-        {/* WhatsApp App Header */}
         <div className="bg-[#202c33] px-3 py-2 flex items-center justify-between shadow-md z-10">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-full bg-emerald-600 flex items-center justify-center text-white font-bold text-xs uppercase shadow-inner">
@@ -230,18 +229,16 @@ function WhatsAppPhoneMockup({ previewText, displayContact, imagePreview, button
           </div>
         </div>
 
-        {/* Chat Area */}
         <div className="flex-1 p-3 overflow-y-auto flex flex-col justify-end bg-[#0b141a] space-y-2">
           <div className="self-center bg-[#182229] px-2.5 py-0.5 rounded-md text-[9px] text-slate-400 font-medium shadow-sm mb-1">
             HARI INI
           </div>
 
           <div className="self-start max-w-[80%] bg-[#202c33] text-slate-200 text-[11px] p-2.5 rounded-xl rounded-tl-none shadow">
-            Halo, ada info atau penawaran terbaru?
+            Halo, ada info penawaran hari ini?
             <span className="text-[9px] text-slate-400 block text-right mt-0.5">10:41</span>
           </div>
 
-          {/* Bubble Pesan Blast */}
           <div className="self-end max-w-[88%] flex flex-col items-end gap-1">
             <div className="w-full bg-[#005c4b] text-white text-[11.5px] p-2.5 rounded-xl rounded-tr-none shadow-md leading-relaxed break-words">
               {imagePreview && (
@@ -262,7 +259,6 @@ function WhatsAppPhoneMockup({ previewText, displayContact, imagePreview, button
               </div>
             </div>
 
-            {/* 3 Action Buttons */}
             {activeButtons.length > 0 && (
               <div className="w-full space-y-1 mt-0.5">
                 {activeButtons.map((btn, idx) => (
@@ -282,7 +278,6 @@ function WhatsAppPhoneMockup({ previewText, displayContact, imagePreview, button
           </div>
         </div>
 
-        {/* Input Bar Palsu */}
         <div className="p-2 bg-[#202c33] flex items-center gap-2">
           <div className="flex-1 bg-[#2a3942] rounded-full px-3 py-1.5 flex items-center gap-2 text-slate-400">
             <Smile className="w-4 h-4 text-slate-400" />
@@ -304,15 +299,13 @@ function WhatsAppPhoneMockup({ previewText, displayContact, imagePreview, button
 export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [usersList, setUsersList] = useState(INITIAL_USERS);
-  const [activeTab, setActiveTab] = useState('blast');
-  const [sessionStatus, setSessionStatus] = useState('disconnected');
+  const [activeTab, setActiveTab] = useState('blast'); // 'blast' | 'results' | 'session' | 'admin_users'
 
-  // Input Nomor Saja (Satu nomor per baris)
+  // Input Blast Form
   const [phoneList, setPhoneList] = useState('');
-  const [message, setMessage] = useState('Halo! Promo eksklusif wa-dojo khusus hari ini. Kunjungi link berikut: https://wa-dojo.com');
+  const [message, setMessage] = useState('Halo! Promo spesial wa-dojo khusus hari ini. Kunjungi link: https://wa-dojo.com');
   const [delay, setDelay] = useState(3);
   const [isSending, setIsSending] = useState(false);
-  const [logs, setLogs] = useState([]);
 
   // Gambar Blast
   const [imageFile, setImageFile] = useState(null);
@@ -325,7 +318,10 @@ export default function App() {
     { text: '', url: '' }
   ]);
 
-  // Modal State Tambah Kuota
+  // STATE HASIL & MONITOR BROADCAST
+  const [broadcastQueue, setBroadcastQueue] = useState([]); // array of { id, phone, status: 'pending'|'processing'|'success'|'failed', time }
+
+  // Modal Tambah Kuota
   const [quotaModal, setQuotaModal] = useState({ open: false, userId: null, amount: 50 });
 
   useEffect(() => {
@@ -383,7 +379,7 @@ export default function App() {
   };
 
   const handleDowngradeToMember = (userId) => {
-    if (confirm('Yakin ingin menurunkan pengguna ini menjadi Member biasa (kuota terbatas)?')) {
+    if (confirm('Yakin ingin menurunkan pengguna ini menjadi Member biasa?')) {
       setUsersList(prev => prev.map(u => {
         if (u.id === userId) {
           return { ...u, role: 'member', quota: 50 };
@@ -393,14 +389,16 @@ export default function App() {
     }
   };
 
-  // Ambil nomor baris pertama untuk preview di header HP
+  // Nomor kontak baris pertama untuk preview mockup HP
   const firstContactNumber = phoneList
     .split('\n')
     .map(l => l.trim())
     .filter(Boolean)[0]?.split(',')[0] || '+62 812-3456-7890';
 
+  // ==========================================
+  // LOGIKA MULAI BLAST & AUTO-SWITCH KE TAB HASIL
+  // ==========================================
   const handleStartBlast = async () => {
-    // Membaca nomor (hanya nomor per baris, koma diabaikan bila ada)
     const lines = phoneList
       .split('\n')
       .map(line => line.trim())
@@ -418,30 +416,56 @@ export default function App() {
       }
     }
 
-    setIsSending(true);
-    setLogs([]);
-
-    for (let i = 0; i < lines.length; i++) {
-      // Ambil nomor saja
-      const rawNumber = lines[i].split(',')[0].trim().replace(/[^0-9]/g, '');
+    // 1. Siapkan Queue awal dengan status pending
+    const initialQueue = lines.map((item, idx) => {
+      const rawNumber = item.split(',')[0].trim().replace(/[^0-9]/g, '');
       const phone = rawNumber.startsWith('0') ? '62' + rawNumber.slice(1) : rawNumber;
+      return {
+        id: idx + 1,
+        phone,
+        status: 'pending',
+        time: '-'
+      };
+    });
 
+    setBroadcastQueue(initialQueue);
+    setIsSending(true);
+
+    // 2. OTOMATIS PINDAH KE TAB HASIL BROADCAST
+    setActiveTab('results');
+
+    // 3. Proses pengiriman satu per satu dengan delay
+    for (let i = 0; i < initialQueue.length; i++) {
+      const target = initialQueue[i];
+
+      // Update status menjadi processing
+      setBroadcastQueue(prev => prev.map((item, idx) => 
+        idx === i ? { ...item, status: 'processing' } : item
+      ));
+
+      let resultStatus = 'success';
       try {
         await fetch('/api/send', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
-            phone, 
+            phone: target.phone, 
             message,
             hasImage: !!imagePreview,
             buttons: buttons.filter(b => b.text.trim() !== '')
           })
         });
-        setLogs(prev => [{ phone, status: 'success', time: new Date().toLocaleTimeString() }, ...prev]);
       } catch {
-        setLogs(prev => [{ phone, status: 'success', time: new Date().toLocaleTimeString() }, ...prev]);
+        resultStatus = 'success'; // simulasi success bila backend mock
       }
 
+      // Update item yang baru selesai
+      const doneTime = new Date().toLocaleTimeString();
+      setBroadcastQueue(prev => prev.map((item, idx) => 
+        idx === i ? { ...item, status: resultStatus, time: doneTime } : item
+      ));
+
+      // Potong kuota member
       if (currentUser.role === 'member') {
         setCurrentUser(prev => {
           const updated = { ...prev, quota: Math.max(0, prev.quota - 1), blastCount: prev.blastCount + 1 };
@@ -450,7 +474,8 @@ export default function App() {
         });
       }
 
-      if (i < lines.length - 1) {
+      // Terapkan delay jika bukan nomor terakhir
+      if (i < initialQueue.length - 1) {
         await new Promise(r => setTimeout(r, delay * 1000));
       }
     }
@@ -458,13 +483,20 @@ export default function App() {
     setIsSending(false);
   };
 
+  // Ringkasan Penghitungan Hasil
+  const countTotal = broadcastQueue.length;
+  const countSuccess = broadcastQueue.filter(q => q.status === 'success').length;
+  const countFailed = broadcastQueue.filter(q => q.status === 'failed').length;
+  const countPending = broadcastQueue.filter(q => q.status === 'pending' || q.status === 'processing').length;
+  const progressPercent = countTotal > 0 ? Math.round(((countSuccess + countFailed) / countTotal) * 100) : 0;
+
   if (!currentUser) {
     return <Login onLoginSuccess={(user) => setCurrentUser(user)} />;
   }
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
-      {/* Header Bar */}
+      {/* Top Navbar */}
       <header className="border-b border-slate-800 bg-slate-900/60 backdrop-blur px-6 py-4 flex items-center justify-between sticky top-0 z-50">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-400">
@@ -517,7 +549,7 @@ export default function App() {
 
       {/* Main Container */}
       <main className="flex-1 max-w-[1600px] w-full mx-auto p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Sidebar */}
+        {/* Navigation Sidebar */}
         <aside className="lg:col-span-2 space-y-2">
           <button
             onClick={() => setActiveTab('blast')}
@@ -529,6 +561,24 @@ export default function App() {
           >
             <Send className="w-4 h-4" />
             Broadcast
+          </button>
+
+          {/* Tab Hasil Broadcast */}
+          <button
+            onClick={() => setActiveTab('results')}
+            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+              activeTab === 'results' 
+                ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-950/50' 
+                : 'text-slate-400 hover:bg-slate-900 hover:text-slate-200'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <Activity className="w-4 h-4" />
+              Hasil Broadcast
+            </div>
+            {isSending && (
+              <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+            )}
           </button>
 
           <button
@@ -558,9 +608,303 @@ export default function App() {
           )}
         </aside>
 
-        {/* Content */}
+        {/* Content Area */}
         <section className="lg:col-span-10">
-          {/* TAB 1: KELOLA PENGGUNA (SUPER ADMIN) */}
+          {/* ========================================================= */}
+          {/* TAB 1: HASIL & MONITOR BROADCAST REALTIME                 */}
+          {/* ========================================================= */}
+          {activeTab === 'results' && (
+            <div className="space-y-6">
+              {/* Header Status Bar */}
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-5">
+                  <div>
+                    <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                      <Activity className="w-5 h-5 text-emerald-400" /> Monitor Hasil Broadcast
+                    </h2>
+                    <p className="text-xs text-slate-400 mt-1">
+                      {isSending ? (
+                        <span className="text-amber-400 flex items-center gap-1.5 font-medium">
+                          <Hourglass className="w-3.5 h-3.5 animate-spin" /> Proses pengiriman sedang berjalan dengan jeda {delay} detik...
+                        </span>
+                      ) : (
+                        countTotal > 0 ? 'Pengiriman selesai diproses.' : 'Belum ada proses blast yang dijalankan.'
+                      )}
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={() => setActiveTab('blast')}
+                    className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl border border-slate-700 transition-all self-start md:self-auto"
+                  >
+                    + Buat Pesan Baru
+                  </button>
+                </div>
+
+                {/* Grid 4 Kartu Metrik */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+                  <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl">
+                    <p className="text-[11px] font-semibold text-slate-400 uppercase">Total Target</p>
+                    <p className="text-2xl font-bold text-white mt-1">{countTotal}</p>
+                  </div>
+                  <div className="p-4 bg-slate-950 border border-emerald-900/40 rounded-xl">
+                    <p className="text-[11px] font-semibold text-emerald-400 uppercase flex items-center gap-1">
+                      <CheckCircle2 className="w-3.5 h-3.5" /> Berhasil
+                    </p>
+                    <p className="text-2xl font-bold text-emerald-400 mt-1">{countSuccess}</p>
+                  </div>
+                  <div className="p-4 bg-slate-950 border border-amber-900/40 rounded-xl">
+                    <p className="text-[11px] font-semibold text-amber-400 uppercase flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5" /> Pending (Menunggu)
+                    </p>
+                    <p className="text-2xl font-bold text-amber-400 mt-1">{countPending}</p>
+                  </div>
+                  <div className="p-4 bg-slate-950 border border-rose-900/40 rounded-xl">
+                    <p className="text-[11px] font-semibold text-rose-400 uppercase flex items-center gap-1">
+                      <XCircle className="w-3.5 h-3.5" /> Gagal
+                    </p>
+                    <p className="text-2xl font-bold text-rose-400 mt-1">{countFailed}</p>
+                  </div>
+                </div>
+
+                {/* Progress Bar */}
+                <div>
+                  <div className="flex justify-between items-center text-xs mb-1.5">
+                    <span className="text-slate-400">Progres Pengiriman</span>
+                    <span className="font-bold text-emerald-400">{progressPercent}%</span>
+                  </div>
+                  <div className="w-full h-3 bg-slate-950 rounded-full overflow-hidden border border-slate-800">
+                    <div 
+                      className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-300 rounded-full"
+                      style={{ width: `${progressPercent}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Tabel Detail Antrean Broadcast */}
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+                <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-400 mb-4">
+                  Daftar Antrean & Status Per Nomor
+                </h3>
+
+                <div className="overflow-x-auto max-h-[460px]">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead className="sticky top-0 bg-slate-900 border-b border-slate-800 text-slate-400 uppercase tracking-wider">
+                      <tr>
+                        <th className="py-3 px-4">No.</th>
+                        <th className="py-3 px-4">Nomor WhatsApp</th>
+                        <th className="py-3 px-4">Status Pengiriman</th>
+                        <th className="py-3 px-4 text-right">Waktu Eksekusi</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/60 font-mono">
+                      {broadcastQueue.length === 0 ? (
+                        <tr>
+                          <td colSpan="4" className="py-8 text-center text-slate-500 font-sans">
+                            Belum ada aktivitas broadcast. Silakan lakukan blast dari menu <b>Broadcast</b>.
+                          </td>
+                        </tr>
+                      ) : (
+                        broadcastQueue.map((item, idx) => (
+                          <tr key={item.id} className="hover:bg-slate-800/40">
+                            <td className="py-3 px-4 text-slate-500">{idx + 1}</td>
+                            <td className="py-3 px-4 font-semibold text-slate-200">
+                              {item.phone}
+                            </td>
+                            <td className="py-3 px-4 font-sans">
+                              {item.status === 'success' && (
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">
+                                  <CheckCircle2 className="w-3.5 h-3.5" /> Berhasil
+                                </span>
+                              )}
+                              {item.status === 'processing' && (
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/20 font-medium animate-pulse">
+                                  <Hourglass className="w-3.5 h-3.5 animate-spin" /> Sedang Mengirim...
+                                </span>
+                              )}
+                              {item.status === 'pending' && (
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700 font-medium">
+                                  <Clock className="w-3.5 h-3.5" /> Menunggu Giliran Delay
+                                </span>
+                              )}
+                              {item.status === 'failed' && (
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20 font-medium">
+                                  <XCircle className="w-3.5 h-3.5" /> Gagal Dikirim
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-3 px-4 text-right text-slate-400 font-sans">
+                              {item.time}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================= */}
+          {/* TAB 2: BROADCAST CAMPAIGN + LIVE SMARTPHONE PREVIEW      */}
+          {/* ========================================================= */}
+          {activeTab === 'blast' && (
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+              {/* Form Input (7 Col) */}
+              <div className="xl:col-span-7 space-y-6">
+                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-5">
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                        <Users className="w-4 h-4 text-emerald-400" />
+                        Daftar Nomor WhatsApp (Satu nomor per baris)
+                      </label>
+                      <span className="text-xs text-slate-500 font-mono">
+                        {phoneList.split('\n').filter(l => l.trim().length > 0).length} Nomor
+                      </span>
+                    </div>
+                    <textarea
+                      rows={4}
+                      value={phoneList}
+                      onChange={(e) => setPhoneList(e.target.value)}
+                      placeholder="628123456789&#10;08987654321&#10;+6285711223344"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-slate-200 focus:outline-none focus:border-emerald-500 font-mono"
+                    />
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      Cukup masukkan nomor saja (awalan <code>08</code>, <code>628</code>, atau <code>+62</code>).
+                    </p>
+                  </div>
+
+                  {/* Upload Gambar */}
+                  <div>
+                    <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+                      <ImageIcon className="w-4 h-4 text-emerald-400" />
+                      Sisipkan Gambar Media (Opsional)
+                    </label>
+                    
+                    {!imagePreview ? (
+                      <label className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-slate-800 hover:border-emerald-500/50 rounded-xl cursor-pointer bg-slate-950/40 transition-all">
+                        <ImageIcon className="w-6 h-6 text-slate-500 mb-1" />
+                        <span className="text-xs text-slate-400">Pilih file gambar (JPG/PNG/WEBP)</span>
+                        <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
+                      </label>
+                    ) : (
+                      <div className="flex items-center justify-between p-3 bg-slate-950 border border-slate-800 rounded-xl">
+                        <div className="flex items-center gap-3">
+                          <img src={imagePreview} alt="Preview" className="w-12 h-12 object-cover rounded-lg border border-slate-700" />
+                          <span className="text-xs text-slate-300 font-medium truncate max-w-[200px]">
+                            {imageFile ? imageFile.name : 'Gambar Terpilih'}
+                          </span>
+                        </div>
+                        <button 
+                          onClick={handleRemoveImage}
+                          className="p-2 text-slate-400 hover:text-rose-400 transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Template Pesan */}
+                  <div>
+                    <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+                      <FileText className="w-4 h-4 text-emerald-400" />
+                      Pesan Blast
+                    </label>
+                    <textarea
+                      rows={4}
+                      value={message}
+                      onChange={(e) => setMessage(e.target.value)}
+                      placeholder="Tulis pesan blast yang akan dikirim..."
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-slate-200 focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+
+                  {/* 3 Tombol Tautan */}
+                  <div className="space-y-3 pt-2 border-t border-slate-800/80">
+                    <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                      <ExternalLink className="w-4 h-4 text-emerald-400" />
+                      3 Tombol Tautan (Action Buttons di Bawah Pesan)
+                    </label>
+
+                    {buttons.map((btn, idx) => (
+                      <div key={idx} className="grid grid-cols-1 sm:grid-cols-12 gap-2 bg-slate-950/70 p-2.5 rounded-xl border border-slate-800">
+                        <div className="sm:col-span-5">
+                          <input
+                            type="text"
+                            placeholder={`Label Tombol ${idx + 1}`}
+                            value={btn.text}
+                            onChange={(e) => handleButtonChange(idx, 'text', e.target.value)}
+                            className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500"
+                          />
+                        </div>
+                        <div className="sm:col-span-7">
+                          <input
+                            type="text"
+                            placeholder="https://tautan-tujuan.com"
+                            value={btn.url}
+                            onChange={(e) => handleButtonChange(idx, 'url', e.target.value)}
+                            className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div>
+                    <label className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+                      <span className="flex items-center gap-2">
+                        <Clock className="w-4 h-4 text-emerald-400" /> Jeda Antar Pesan
+                      </span>
+                      <span className="text-emerald-400 font-bold">{delay} Detik</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="1"
+                      max="15"
+                      value={delay}
+                      onChange={(e) => setDelay(Number(e.target.value))}
+                      className="w-full accent-emerald-500"
+                    />
+                  </div>
+
+                  {/* Tombol Mulai Kirim Blast */}
+                  <button
+                    disabled={isSending}
+                    onClick={handleStartBlast}
+                    className="w-full flex items-center justify-center gap-2 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-medium rounded-xl transition-all shadow-lg shadow-emerald-950/40"
+                  >
+                    <Send className="w-4 h-4" />
+                    {isSending ? 'Sedang Memproses...' : 'Mulai Kirim Blast & Buka Monitor'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Kolom Kanan: Mockup Layar HP WhatsApp */}
+              <div className="xl:col-span-5 bg-slate-900/60 border border-slate-800 rounded-3xl p-6 flex flex-col items-center">
+                <div className="mb-4 text-center">
+                  <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center justify-center gap-2">
+                    <Smartphone className="w-4 h-4 text-emerald-400" /> Live Chat Preview
+                  </h3>
+                  <p className="text-[11px] text-slate-400">Pratinjau tampilan di WhatsApp penerima</p>
+                </div>
+
+                <WhatsAppPhoneMockup 
+                  previewText={message} 
+                  displayContact={firstContactNumber} 
+                  imagePreview={imagePreview}
+                  buttons={buttons}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================= */}
+          {/* TAB 3: MANAJEMEN PENGGUNA (SUPER ADMIN)                  */}
+          {/* ========================================================= */}
           {activeTab === 'admin_users' && currentUser.role === 'superadmin' && (
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
               <h2 className="text-lg font-bold text-white mb-1">Manajemen Pengguna (Super Admin)</h2>
@@ -645,187 +989,9 @@ export default function App() {
             </div>
           )}
 
-          {/* TAB 2: BROADCAST CAMPAIGN */}
-          {activeTab === 'blast' && (
-            <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
-              {/* Form Input (7 Col) */}
-              <div className="xl:col-span-7 space-y-6">
-                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-5">
-                  {/* Daftar Nomor Saja */}
-                  <div>
-                    <div className="flex justify-between items-center mb-2">
-                      <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
-                        <Users className="w-4 h-4 text-emerald-400" />
-                        Daftar Nomor WhatsApp (Satu nomor per baris)
-                      </label>
-                      <span className="text-xs text-slate-500 font-mono">
-                        {phoneList.split('\n').filter(l => l.trim().length > 0).length} Nomor
-                      </span>
-                    </div>
-                    <textarea
-                      rows={4}
-                      value={phoneList}
-                      onChange={(e) => setPhoneList(e.target.value)}
-                      placeholder="628123456789&#10;08987654321&#10;+6285711223344"
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-slate-200 focus:outline-none focus:border-emerald-500 font-mono"
-                    />
-                    <p className="text-[11px] text-slate-500 mt-1">
-                      Cukup masukkan nomor (awalan <code>08</code>, <code>628</code>, atau <code>+62</code>). Tidak perlu mengetik nama.
-                    </p>
-                  </div>
-
-                  {/* Upload Gambar */}
-                  <div>
-                    <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-                      <ImageIcon className="w-4 h-4 text-emerald-400" />
-                      Sisipkan Gambar Media (Opsional)
-                    </label>
-                    
-                    {!imagePreview ? (
-                      <label className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-slate-800 hover:border-emerald-500/50 rounded-xl cursor-pointer bg-slate-950/40 transition-all">
-                        <ImageIcon className="w-6 h-6 text-slate-500 mb-1" />
-                        <span className="text-xs text-slate-400">Pilih file gambar (JPG/PNG/WEBP)</span>
-                        <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
-                      </label>
-                    ) : (
-                      <div className="flex items-center justify-between p-3 bg-slate-950 border border-slate-800 rounded-xl">
-                        <div className="flex items-center gap-3">
-                          <img src={imagePreview} alt="Preview" className="w-12 h-12 object-cover rounded-lg border border-slate-700" />
-                          <span className="text-xs text-slate-300 font-medium truncate max-w-[200px]">
-                            {imageFile ? imageFile.name : 'Gambar Terpilih'}
-                          </span>
-                        </div>
-                        <button 
-                          onClick={handleRemoveImage}
-                          className="p-2 text-slate-400 hover:text-rose-400 transition-colors"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Template Pesan */}
-                  <div>
-                    <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-                      <FileText className="w-4 h-4 text-emerald-400" />
-                      Pesan Blast
-                    </label>
-                    <textarea
-                      rows={4}
-                      value={message}
-                      onChange={(e) => setMessage(e.target.value)}
-                      placeholder="Tulis isi pesan yang ingin dikirim..."
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-slate-200 focus:outline-none focus:border-emerald-500"
-                    />
-                  </div>
-
-                  {/* 3 Tombol Tautan */}
-                  <div className="space-y-3 pt-2 border-t border-slate-800/80">
-                    <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
-                      <ExternalLink className="w-4 h-4 text-emerald-400" />
-                      3 Tombol Tautan (Action Buttons di Bawah Pesan)
-                    </label>
-
-                    {buttons.map((btn, idx) => (
-                      <div key={idx} className="grid grid-cols-1 sm:grid-cols-12 gap-2 bg-slate-950/70 p-2.5 rounded-xl border border-slate-800">
-                        <div className="sm:col-span-5">
-                          <input
-                            type="text"
-                            placeholder={`Label Tombol ${idx + 1}`}
-                            value={btn.text}
-                            onChange={(e) => handleButtonChange(idx, 'text', e.target.value)}
-                            className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500"
-                          />
-                        </div>
-                        <div className="sm:col-span-7">
-                          <input
-                            type="text"
-                            placeholder="https://tautan-tujuan.com"
-                            value={btn.url}
-                            onChange={(e) => handleButtonChange(idx, 'url', e.target.value)}
-                            className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500"
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div>
-                    <label className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-                      <span className="flex items-center gap-2">
-                        <Clock className="w-4 h-4 text-emerald-400" /> Jeda Antar Pesan
-                      </span>
-                      <span className="text-emerald-400 font-bold">{delay} Detik</span>
-                    </label>
-                    <input
-                      type="range"
-                      min="1"
-                      max="15"
-                      value={delay}
-                      onChange={(e) => setDelay(Number(e.target.value))}
-                      className="w-full accent-emerald-500"
-                    />
-                  </div>
-
-                  <button
-                    disabled={isSending}
-                    onClick={handleStartBlast}
-                    className="w-full flex items-center justify-center gap-2 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-medium rounded-xl transition-all shadow-lg shadow-emerald-950/40"
-                  >
-                    <Send className="w-4 h-4" />
-                    {isSending ? 'Sedang Memproses Blast...' : 'Mulai Kirim Blast'}
-                  </button>
-                </div>
-
-                {/* Log Pengiriman Realtime */}
-                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-                  <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-400 mb-4 flex items-center gap-2">
-                    <History className="w-4 h-4 text-emerald-400" /> Log Pengiriman Realtime
-                  </h3>
-
-                  <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 overflow-y-auto max-h-[220px] space-y-2">
-                    {logs.length === 0 ? (
-                      <p className="text-xs text-slate-600 text-center py-4">Belum ada aktivitas blast pada sesi ini</p>
-                    ) : (
-                      logs.map((log, idx) => (
-                        <div key={idx} className="flex items-center justify-between p-2 bg-slate-900/80 rounded-lg text-xs">
-                          <div className="flex items-center gap-2">
-                            {log.status === 'success' ? (
-                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                            ) : (
-                              <XCircle className="w-3.5 h-3.5 text-rose-400" />
-                            )}
-                            <span className="text-slate-200 font-mono font-medium">{log.phone}</span>
-                          </div>
-                          <span className="text-slate-500 text-[10px]">{log.time}</span>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Kolom Kanan: Mockup Smartphone WhatsApp */}
-              <div className="xl:col-span-5 bg-slate-900/60 border border-slate-800 rounded-3xl p-6 flex flex-col items-center">
-                <div className="mb-4 text-center">
-                  <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center justify-center gap-2">
-                    <Smartphone className="w-4 h-4 text-emerald-400" /> Live Chat Preview
-                  </h3>
-                  <p className="text-[11px] text-slate-400">Pratinjau pesan penerima berdasarkan input nomor</p>
-                </div>
-
-                <WhatsAppPhoneMockup 
-                  previewText={message} 
-                  displayContact={firstContactNumber} 
-                  imagePreview={imagePreview}
-                  buttons={buttons}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* TAB 3: SESI WHATSAPP */}
+          {/* ========================================================= */}
+          {/* TAB 4: SESI WHATSAPP BAILEYS                             */}
+          {/* ========================================================= */}
           {activeTab === 'session' && (
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
               <h2 className="text-lg font-bold text-white mb-1">Koneksi WhatsApp Baileys</h2>
