@@ -25,7 +25,11 @@ import {
   Paperclip,
   Mic,
   Wifi,
-  BatteryMedium
+  BatteryMedium,
+  Image as ImageIcon,
+  ExternalLink,
+  Trash2,
+  ArrowDownCircle
 } from 'lucide-react';
 
 const INITIAL_USERS = [
@@ -34,7 +38,6 @@ const INITIAL_USERS = [
   { id: 3, username: 'vvip_sultan', role: 'vvip', quota: Infinity, blastCount: 4320 },
 ];
 
-// Helper untuk mendeteksi dan memberi styling link clickable di bubble chat
 function renderMessageWithLinks(text) {
   const urlRegex = /(https?:\/\/[^\s]+)/g;
   const parts = text.split(urlRegex);
@@ -183,21 +186,20 @@ function Login({ onLoginSuccess }) {
 }
 
 // ==========================================
-// 2. KOMPONEN PREVIEW SMARTPHONE WHATSAPP
+// 2. MOCKUP SMARTPHONE WHATSAPP
 // ==========================================
-function WhatsAppPhoneMockup({ previewText, recipientName }) {
+function WhatsAppPhoneMockup({ previewText, displayContact, imagePreview, buttons }) {
   const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  const displayMsg = previewText.replace(/{nama}/g, recipientName || 'Budi Santoso');
+  const activeButtons = buttons.filter(b => b.text.trim() !== '');
 
   return (
-    <div className="w-[310px] sm:w-[340px] h-[590px] bg-slate-950 rounded-[44px] p-3 shadow-2xl border-[5px] border-slate-700 flex flex-col relative mx-auto select-none">
-      {/* Notch / Speaker Hape */}
+    <div className="w-[320px] sm:w-[350px] h-[640px] bg-slate-950 rounded-[44px] p-3 shadow-2xl border-[5px] border-slate-700 flex flex-col relative mx-auto select-none">
+      {/* Notch */}
       <div className="absolute top-4 left-1/2 -translate-x-1/2 w-28 h-4 bg-slate-800 rounded-full z-30 flex items-center justify-center">
         <div className="w-3 h-3 rounded-full bg-black/60 mr-2" />
         <div className="w-8 h-1.5 bg-black/40 rounded-full" />
       </div>
 
-      {/* Screen Body */}
       <div className="w-full h-full rounded-[34px] overflow-hidden flex flex-col bg-[#0b141a] text-slate-100 relative">
         {/* Status Bar */}
         <div className="pt-2 px-5 pb-1 flex justify-between items-center text-[11px] font-semibold text-slate-300 z-20">
@@ -212,11 +214,11 @@ function WhatsAppPhoneMockup({ previewText, recipientName }) {
         <div className="bg-[#202c33] px-3 py-2 flex items-center justify-between shadow-md z-10">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-full bg-emerald-600 flex items-center justify-center text-white font-bold text-xs uppercase shadow-inner">
-              {(recipientName || 'B')[0]}
+              <Phone className="w-4 h-4" />
             </div>
             <div>
-              <h4 className="text-xs font-semibold text-white leading-tight">
-                {recipientName || 'Budi Santoso'}
+              <h4 className="text-xs font-semibold text-white leading-tight font-mono">
+                {displayContact || '+62 812-3456-7890'}
               </h4>
               <p className="text-[10px] text-emerald-400">online</p>
             </div>
@@ -228,37 +230,59 @@ function WhatsAppPhoneMockup({ previewText, recipientName }) {
           </div>
         </div>
 
-        {/* Chat Wallpaper & Area Pesan */}
-        <div className="flex-1 p-3 overflow-y-auto flex flex-col justify-end bg-[#0b141a] relative space-y-2">
-          {/* Tanggal badge */}
+        {/* Chat Area */}
+        <div className="flex-1 p-3 overflow-y-auto flex flex-col justify-end bg-[#0b141a] space-y-2">
           <div className="self-center bg-[#182229] px-2.5 py-0.5 rounded-md text-[9px] text-slate-400 font-medium shadow-sm mb-1">
             HARI INI
           </div>
 
-          {/* Bubble Pesan Masuk / Percakapan Pembuka */}
-          <div className="self-start max-w-[80%] bg-[#202c33] text-slate-200 text-[11.5px] p-2.5 rounded-xl rounded-tl-none shadow leading-relaxed">
-            Halo kak, info promonya bagaimana ya?
+          <div className="self-start max-w-[80%] bg-[#202c33] text-slate-200 text-[11px] p-2.5 rounded-xl rounded-tl-none shadow">
+            Halo, ada info atau penawaran terbaru?
             <span className="text-[9px] text-slate-400 block text-right mt-0.5">10:41</span>
           </div>
 
-          {/* Bubble Pesan Keluar (Blast Preview) */}
-          <div className="self-end max-w-[85%] bg-[#005c4b] text-white text-[11.5px] p-2.5 rounded-xl rounded-tr-none shadow-md leading-relaxed break-words animate-in fade-in duration-200">
-            {displayMsg ? (
-              <div className="whitespace-pre-wrap">
-                {renderMessageWithLinks(displayMsg)}
-              </div>
-            ) : (
-              <span className="text-slate-300 italic text-[11px]">Ketik pesan blast di samping...</span>
-            )}
+          {/* Bubble Pesan Blast */}
+          <div className="self-end max-w-[88%] flex flex-col items-end gap-1">
+            <div className="w-full bg-[#005c4b] text-white text-[11.5px] p-2.5 rounded-xl rounded-tr-none shadow-md leading-relaxed break-words">
+              {imagePreview && (
+                <div className="mb-2 rounded-lg overflow-hidden border border-emerald-700/50 max-h-40 bg-black/20 flex items-center justify-center">
+                  <img src={imagePreview} alt="Blast Media" className="w-full h-full object-cover" />
+                </div>
+              )}
 
-            <div className="flex items-center justify-end gap-1 text-[9px] text-emerald-200/80 mt-1">
-              <span>{currentTime}</span>
-              <CheckCheck className="w-3.5 h-3.5 text-[#53bdeb]" />
+              {previewText ? (
+                <div className="whitespace-pre-wrap">{renderMessageWithLinks(previewText)}</div>
+              ) : (
+                <span className="text-slate-300 italic text-[11px]">Ketik pesan blast di samping...</span>
+              )}
+
+              <div className="flex items-center justify-end gap-1 text-[9px] text-emerald-200/80 mt-1">
+                <span>{currentTime}</span>
+                <CheckCheck className="w-3.5 h-3.5 text-[#53bdeb]" />
+              </div>
             </div>
+
+            {/* 3 Action Buttons */}
+            {activeButtons.length > 0 && (
+              <div className="w-full space-y-1 mt-0.5">
+                {activeButtons.map((btn, idx) => (
+                  <a
+                    key={idx}
+                    href={btn.url || '#'}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="w-full py-1.5 px-3 bg-[#202c33] hover:bg-[#2a3942] text-[#53bdeb] text-[11px] font-semibold rounded-lg shadow flex items-center justify-center gap-1.5 border border-slate-700/50 transition-colors"
+                  >
+                    <ExternalLink className="w-3 h-3 text-[#53bdeb]" />
+                    {btn.text}
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Input Bar Palsu Bawah */}
+        {/* Input Bar Palsu */}
         <div className="p-2 bg-[#202c33] flex items-center gap-2">
           <div className="flex-1 bg-[#2a3942] rounded-full px-3 py-1.5 flex items-center gap-2 text-slate-400">
             <Smile className="w-4 h-4 text-slate-400" />
@@ -282,16 +306,26 @@ export default function App() {
   const [usersList, setUsersList] = useState(INITIAL_USERS);
   const [activeTab, setActiveTab] = useState('blast');
   const [sessionStatus, setSessionStatus] = useState('disconnected');
-  const [qrCode, setQrCode] = useState(null);
 
-  // Form states
+  // Input Nomor Saja (Satu nomor per baris)
   const [phoneList, setPhoneList] = useState('');
-  const [message, setMessage] = useState('Halo {nama}, promo spesial wa-dojo khusus hari ini! Kunjungi link berikut: https://wa-dojo.com');
+  const [message, setMessage] = useState('Halo! Promo eksklusif wa-dojo khusus hari ini. Kunjungi link berikut: https://wa-dojo.com');
   const [delay, setDelay] = useState(3);
   const [isSending, setIsSending] = useState(false);
   const [logs, setLogs] = useState([]);
 
-  // Modal State
+  // Gambar Blast
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+
+  // 3 Tombol Tautan
+  const [buttons, setButtons] = useState([
+    { text: 'Kunjungi Website', url: 'https://wa-dojo.com' },
+    { text: 'Hubungi Admin', url: 'https://wa.me/628123456789' },
+    { text: '', url: '' }
+  ]);
+
+  // Modal State Tambah Kuota
   const [quotaModal, setQuotaModal] = useState({ open: false, userId: null, amount: 50 });
 
   useEffect(() => {
@@ -308,6 +342,25 @@ export default function App() {
   const handleLogout = () => {
     localStorage.removeItem('wa_user');
     setCurrentUser(null);
+  };
+
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setImageFile(file);
+      setImagePreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+  };
+
+  const handleButtonChange = (index, field, value) => {
+    const updated = [...buttons];
+    updated[index][field] = value;
+    setButtons(updated);
   };
 
   const handleAddQuota = () => {
@@ -329,11 +382,30 @@ export default function App() {
     }));
   };
 
-  // Nama sampel pertama untuk live preview di HP
-  const firstContactName = phoneList.split('\n')[0]?.split(',')[1]?.trim() || 'Budi Santoso';
+  const handleDowngradeToMember = (userId) => {
+    if (confirm('Yakin ingin menurunkan pengguna ini menjadi Member biasa (kuota terbatas)?')) {
+      setUsersList(prev => prev.map(u => {
+        if (u.id === userId) {
+          return { ...u, role: 'member', quota: 50 };
+        }
+        return u;
+      }));
+    }
+  };
+
+  // Ambil nomor baris pertama untuk preview di header HP
+  const firstContactNumber = phoneList
+    .split('\n')
+    .map(l => l.trim())
+    .filter(Boolean)[0]?.split(',')[0] || '+62 812-3456-7890';
 
   const handleStartBlast = async () => {
-    const lines = phoneList.split('\n').filter(l => l.trim() !== '');
+    // Membaca nomor (hanya nomor per baris, koma diabaikan bila ada)
+    const lines = phoneList
+      .split('\n')
+      .map(line => line.trim())
+      .filter(line => line.length > 0);
+
     if (lines.length === 0) {
       alert('Masukkan daftar nomor tujuan terlebih dahulu.');
       return;
@@ -341,7 +413,7 @@ export default function App() {
 
     if (currentUser.role === 'member') {
       if (currentUser.quota < lines.length) {
-        alert(`Kuota Anda tidak mencukupi! Sisa kuota: ${currentUser.quota}, target: ${lines.length}. Silakan hubungi Super Admin.`);
+        alert(`Kuota Anda tidak mencukupi! Sisa: ${currentUser.quota}, target: ${lines.length}. Silakan hubungi Super Admin.`);
         return;
       }
     }
@@ -350,20 +422,24 @@ export default function App() {
     setLogs([]);
 
     for (let i = 0; i < lines.length; i++) {
-      const item = lines[i].split(',');
-      const phone = item[0].trim();
-      const name = item[1] ? item[1].trim() : 'Kak';
-      const parsedMsg = message.replace(/{nama}/g, name);
+      // Ambil nomor saja
+      const rawNumber = lines[i].split(',')[0].trim().replace(/[^0-9]/g, '');
+      const phone = rawNumber.startsWith('0') ? '62' + rawNumber.slice(1) : rawNumber;
 
       try {
         await fetch('/api/send', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ phone, message: parsedMsg })
+          body: JSON.stringify({ 
+            phone, 
+            message,
+            hasImage: !!imagePreview,
+            buttons: buttons.filter(b => b.text.trim() !== '')
+          })
         });
-        setLogs(prev => [{ phone, name, status: 'success', time: new Date().toLocaleTimeString() }, ...prev]);
+        setLogs(prev => [{ phone, status: 'success', time: new Date().toLocaleTimeString() }, ...prev]);
       } catch {
-        setLogs(prev => [{ phone, name, status: 'success', time: new Date().toLocaleTimeString() }, ...prev]);
+        setLogs(prev => [{ phone, status: 'success', time: new Date().toLocaleTimeString() }, ...prev]);
       }
 
       if (currentUser.role === 'member') {
@@ -388,7 +464,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
-      {/* Top Navbar */}
+      {/* Header Bar */}
       <header className="border-b border-slate-800 bg-slate-900/60 backdrop-blur px-6 py-4 flex items-center justify-between sticky top-0 z-50">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-400">
@@ -417,7 +493,6 @@ export default function App() {
           </div>
         </div>
 
-        {/* Right Info: Status Kuota & Logout */}
         <div className="flex items-center gap-4">
           <div className="bg-slate-800/80 border border-slate-700/60 px-3.5 py-1.5 rounded-xl text-xs flex items-center gap-2">
             <span className="text-slate-400">Sisa Kuota:</span>
@@ -442,7 +517,7 @@ export default function App() {
 
       {/* Main Container */}
       <main className="flex-1 max-w-[1600px] w-full mx-auto p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Navigation Sidebar */}
+        {/* Sidebar */}
         <aside className="lg:col-span-2 space-y-2">
           <button
             onClick={() => setActiveTab('blast')}
@@ -483,23 +558,23 @@ export default function App() {
           )}
         </aside>
 
-        {/* Content Area */}
+        {/* Content */}
         <section className="lg:col-span-10">
           {/* TAB 1: KELOLA PENGGUNA (SUPER ADMIN) */}
           {activeTab === 'admin_users' && currentUser.role === 'superadmin' && (
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-              <h2 className="text-lg font-bold text-white mb-1">Panel Super Admin: Manajemen Member & VVIP</h2>
-              <p className="text-xs text-slate-400 mb-6">Kelola kuota blast member biasa dan upgrade akun yang sudah bayar ke VVIP.</p>
+              <h2 className="text-lg font-bold text-white mb-1">Manajemen Pengguna (Super Admin)</h2>
+              <p className="text-xs text-slate-400 mb-6">Kelola kuota blast member, upgrade ke VVIP, atau turunkan role VVIP kembali ke Member.</p>
 
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr className="border-b border-slate-800 text-slate-400 uppercase tracking-wider">
                       <th className="py-3 px-4">Username</th>
-                      <th className="py-3 px-4">Status / Role</th>
+                      <th className="py-3 px-4">Role</th>
                       <th className="py-3 px-4">Sisa Kuota</th>
                       <th className="py-3 px-4">Total Terkirim</th>
-                      <th className="py-3 px-4 text-center">Aksi Super Admin</th>
+                      <th className="py-3 px-4 text-center">Aksi Role & Kuota</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/60">
@@ -549,7 +624,16 @@ export default function App() {
                                 </button>
                               </>
                             )}
-                            {user.role === 'vvip' && <span className="text-slate-500 italic">Unlimited Aktif</span>}
+
+                            {user.role === 'vvip' && (
+                              <button
+                                onClick={() => handleDowngradeToMember(user.id)}
+                                className="px-2.5 py-1 bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white border border-rose-500/40 rounded-lg flex items-center gap-1 transition-all"
+                              >
+                                <ArrowDownCircle className="w-3 h-3" /> Turunkan ke Member
+                              </button>
+                            )}
+
                             {user.role === 'superadmin' && <span className="text-slate-500 italic">-</span>}
                           </div>
                         </td>
@@ -561,46 +645,110 @@ export default function App() {
             </div>
           )}
 
-          {/* TAB 2: BROADCAST CAMPAIGN + LIVE PHONE PREVIEW */}
+          {/* TAB 2: BROADCAST CAMPAIGN */}
           {activeTab === 'blast' && (
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
-              {/* Kolom Kiri: Form Pesan & Pengaturan (7 Col) */}
+              {/* Form Input (7 Col) */}
               <div className="xl:col-span-7 space-y-6">
                 <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-5">
+                  {/* Daftar Nomor Saja */}
                   <div>
                     <div className="flex justify-between items-center mb-2">
                       <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
                         <Users className="w-4 h-4 text-emerald-400" />
-                        Daftar Nomor WhatsApp (Format: 628xxx, Nama)
+                        Daftar Nomor WhatsApp (Satu nomor per baris)
                       </label>
-                      <span className="text-xs text-slate-500">
-                        {phoneList.split('\n').filter(l => l.trim()).length} Kontak
+                      <span className="text-xs text-slate-500 font-mono">
+                        {phoneList.split('\n').filter(l => l.trim().length > 0).length} Nomor
                       </span>
                     </div>
                     <textarea
                       rows={4}
                       value={phoneList}
                       onChange={(e) => setPhoneList(e.target.value)}
-                      placeholder="628123456789, Budi Santoso&#10;628987654321, Siti Rahma"
+                      placeholder="628123456789&#10;08987654321&#10;+6285711223344"
                       className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-slate-200 focus:outline-none focus:border-emerald-500 font-mono"
                     />
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      Cukup masukkan nomor (awalan <code>08</code>, <code>628</code>, atau <code>+62</code>). Tidak perlu mengetik nama.
+                    </p>
                   </div>
 
+                  {/* Upload Gambar */}
+                  <div>
+                    <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+                      <ImageIcon className="w-4 h-4 text-emerald-400" />
+                      Sisipkan Gambar Media (Opsional)
+                    </label>
+                    
+                    {!imagePreview ? (
+                      <label className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-slate-800 hover:border-emerald-500/50 rounded-xl cursor-pointer bg-slate-950/40 transition-all">
+                        <ImageIcon className="w-6 h-6 text-slate-500 mb-1" />
+                        <span className="text-xs text-slate-400">Pilih file gambar (JPG/PNG/WEBP)</span>
+                        <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
+                      </label>
+                    ) : (
+                      <div className="flex items-center justify-between p-3 bg-slate-950 border border-slate-800 rounded-xl">
+                        <div className="flex items-center gap-3">
+                          <img src={imagePreview} alt="Preview" className="w-12 h-12 object-cover rounded-lg border border-slate-700" />
+                          <span className="text-xs text-slate-300 font-medium truncate max-w-[200px]">
+                            {imageFile ? imageFile.name : 'Gambar Terpilih'}
+                          </span>
+                        </div>
+                        <button 
+                          onClick={handleRemoveImage}
+                          className="p-2 text-slate-400 hover:text-rose-400 transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Template Pesan */}
                   <div>
                     <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
                       <FileText className="w-4 h-4 text-emerald-400" />
-                      Template Pesan & Tautan
+                      Pesan Blast
                     </label>
                     <textarea
-                      rows={5}
+                      rows={4}
                       value={message}
                       onChange={(e) => setMessage(e.target.value)}
-                      placeholder="Tulis pesan blast disini..."
+                      placeholder="Tulis isi pesan yang ingin dikirim..."
                       className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-slate-200 focus:outline-none focus:border-emerald-500"
                     />
-                    <p className="text-[11px] text-slate-500 mt-1">
-                      Tip: Tulis URL (cth: <code>https://wa-dojo.com</code>) dan gunakan <code>{'{nama}'}</code> untuk nama personal otomatis.
-                    </p>
+                  </div>
+
+                  {/* 3 Tombol Tautan */}
+                  <div className="space-y-3 pt-2 border-t border-slate-800/80">
+                    <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                      <ExternalLink className="w-4 h-4 text-emerald-400" />
+                      3 Tombol Tautan (Action Buttons di Bawah Pesan)
+                    </label>
+
+                    {buttons.map((btn, idx) => (
+                      <div key={idx} className="grid grid-cols-1 sm:grid-cols-12 gap-2 bg-slate-950/70 p-2.5 rounded-xl border border-slate-800">
+                        <div className="sm:col-span-5">
+                          <input
+                            type="text"
+                            placeholder={`Label Tombol ${idx + 1}`}
+                            value={btn.text}
+                            onChange={(e) => handleButtonChange(idx, 'text', e.target.value)}
+                            className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500"
+                          />
+                        </div>
+                        <div className="sm:col-span-7">
+                          <input
+                            type="text"
+                            placeholder="https://tautan-tujuan.com"
+                            value={btn.url}
+                            onChange={(e) => handleButtonChange(idx, 'url', e.target.value)}
+                            className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500"
+                          />
+                        </div>
+                      </div>
+                    ))}
                   </div>
 
                   <div>
@@ -648,8 +796,7 @@ export default function App() {
                             ) : (
                               <XCircle className="w-3.5 h-3.5 text-rose-400" />
                             )}
-                            <span className="text-slate-200">{log.phone}</span>
-                            <span className="text-slate-500">({log.name})</span>
+                            <span className="text-slate-200 font-mono font-medium">{log.phone}</span>
                           </div>
                           <span className="text-slate-500 text-[10px]">{log.time}</span>
                         </div>
@@ -659,18 +806,20 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Kolom Kanan: Mockup Layar Smartphone WhatsApp (5 Col) */}
+              {/* Kolom Kanan: Mockup Smartphone WhatsApp */}
               <div className="xl:col-span-5 bg-slate-900/60 border border-slate-800 rounded-3xl p-6 flex flex-col items-center">
                 <div className="mb-4 text-center">
                   <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center justify-center gap-2">
                     <Smartphone className="w-4 h-4 text-emerald-400" /> Live Chat Preview
                   </h3>
-                  <p className="text-[11px] text-slate-400">Tampilan pesan yang diterima pengguna di WhatsApp</p>
+                  <p className="text-[11px] text-slate-400">Pratinjau pesan penerima berdasarkan input nomor</p>
                 </div>
 
                 <WhatsAppPhoneMockup 
                   previewText={message} 
-                  recipientName={firstContactName} 
+                  displayContact={firstContactNumber} 
+                  imagePreview={imagePreview}
+                  buttons={buttons}
                 />
               </div>
             </div>
@@ -704,7 +853,7 @@ export default function App() {
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-sm w-full space-y-4">
             <h3 className="font-bold text-white text-base">Tambah Kuota Member</h3>
-            <p className="text-xs text-slate-400">Masukkan jumlah penambahan kuota blast untuk akun ini.</p>
+            <p className="text-xs text-slate-400">Masukkan jumlah kuota pesan yang ingin ditambahkan.</p>
             
             <input 
               type="number"
