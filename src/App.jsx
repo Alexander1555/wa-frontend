@@ -785,3 +785,74 @@ export default function App() {
     </div>
   );
 }
+
+import React, { useState } from 'react';
+
+export default function Login({ onLoginSuccess }) {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setError('');
+
+    try {
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        localStorage.setItem('wa_token', data.token);
+        onLoginSuccess();
+      } else {
+        setError(data.message || 'Login gagal');
+      }
+    } catch (err) {
+      setError('Gagal menghubungi server');
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
+      <div className="bg-slate-800 border border-slate-700 w-full max-w-md p-8 rounded-2xl shadow-xl text-white">
+        <h2 className="text-2xl font-bold text-center mb-2">WA-Dojo Blaster</h2>
+        <p className="text-sm text-slate-400 text-center mb-6">Masuk untuk mengelola pesan blast</p>
+        
+        {error && <div className="bg-red-500/20 border border-red-500 text-red-300 text-sm p-3 rounded-lg mb-4">{error}</div>}
+
+        <form onSubmit={handleLogin} className="space-y-4">
+          <div>
+            <label className="block text-xs uppercase tracking-wider text-slate-400 mb-1">Username</label>
+            <input 
+              type="text" 
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-emerald-500"
+              required 
+            />
+          </div>
+          <div>
+            <label className="block text-xs uppercase tracking-wider text-slate-400 mb-1">Password</label>
+            <input 
+              type="password" 
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-emerald-500"
+              required 
+            />
+          </div>
+          <button 
+            type="submit"
+            className="w-full bg-emerald-600 hover:bg-emerald-500 font-semibold py-2.5 rounded-lg transition-colors mt-2"
+          >
+            Masuk ke Dashboard
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
